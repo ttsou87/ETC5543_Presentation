@@ -14,11 +14,15 @@ output:
 
 ```{r setup, include=FALSE}
 options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE,
+                      message = FALSE)
+
 ```
 
 background-image: url(https://miro.medium.com/max/730/0*POjH5vv_7t8s8loG)
 background-position: 50% 90%
 # What is a Data Science Degree?
+--
 
 - Data Science has been used as a buzz word in recent years
 
@@ -47,7 +51,7 @@ background-position: 50% 90%
 overflow-x: scroll
 # Data Collection
 
-```{r fig.show = "hold", out.width = "10%", fig.align = "default", echo = FALSE}
+```{r fig.show = "hold", out.width = "20%", fig.align = "default", echo = FALSE}
 knitr::include_graphics("https://docs.ropensci.org/RSelenium/logo.png")
 knitr::include_graphics("https://rvest.tidyverse.org/logo.png")
 ```
@@ -57,11 +61,11 @@ knitr::include_graphics("https://rvest.tidyverse.org/logo.png")
 --
 * [Monash University](https://handbook.monash.edu/current/courses/C6004)
 * [Australia National University](https://programsandcourses.anu.edu.au/program/madan#program-requirements)
+* [University of Adelaide](https://calendar.adelaide.edu.au/aprcw/2022/mdsci_mdatasci)
 
 ---
 
 # Example code
-.scrollable[
 
 ```{r anu, eval = FALSE}
 library(RSelenium)
@@ -87,7 +91,12 @@ title <- course_html %>%
       html_element(".intro__degree-title__component") %>% 
       html_text()
 
-#UAC CODE
+```
+
+---
+# Example Code
+```{r , eval = FALSE}
+
 code <- course_html %>%
       html_element("div.degree-summary.hide-mobile.w-doublenarrow") %>%
       html_element("div.degree-summary-inner") %>%
@@ -106,15 +115,37 @@ curriculum <- course_html %>%
       html_attr("href") %>%
       str_replace_all("/2023", "/2022")
 ```
-]
----
 
 ---
+# Scraped Data
+```{r , echo = FALSE}
+library(tidyverse)
+choose <- function(x, name){
+  read.csv(x) %>% 
+    mutate(School = name) %>% 
+    select(c("School","Course","Course_code", "Unit", "Unit_code", "Overview"))
+}
 
-class: center, middle
+monash1 <- choose("data/monash-master-businessanalytics.csv", "monash")
+monash2 <- choose("data/monash-master-datasci.csv", "monash")
+monash3 <- choose("data/monash-master-healthanalytics.csv", "monash")
+melu <- choose("data/uom-master-datasci.csv", "uofmel")
+usyd <- choose("data/usyd-master-datasci.csv", "usyd")
+uq <- choose("data/uq-master-datasci.csv","uq")
+uade <- choose("data/uade-master-datasci.csv","uade")
+anu <- choose("data/anu-master-appdatasci.csv", "anu") %>% 
+  mutate(Course_code = as.character(Course_code))
+unsw <- choose("data/unsw-master-datascidec.csv", "unsw")%>% 
+  mutate(Course_code = as.character(Course_code))
+uwa <- choose("data/uwa-master-datasci.csv","uwa") %>% 
+  mutate(Course_code = as.character(Course_code))
 
-# Thanks!
 
-Slides created via the R package [**xaringan**](https://github.com/yihui/xaringan).
+#merge all data frames together
+total <- bind_rows(monash1, melu, usyd, uq, uade, anu, unsw, uwa)
 
-The chakra comes from [remark.js](https://remarkjs.com), [**knitr**](https://yihui.org/knitr/), and [R Markdown](https://rmarkdown.rstudio.com).
+kableExtra::kable(head(total, 10)) %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"), font_size = 10) %>%
+  kableExtra::scroll_box(height = "80%")
+
+```
