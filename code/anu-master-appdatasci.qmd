@@ -1,0 +1,124 @@
+---
+title: "Master of Applied Data Science - Australian National University"
+author: "Tina Tsou"
+date: "`r Sys.Date()`"
+format: 
+  html: 
+    code-fold: false
+---
+
+
+```{r setup, include = FALSE}
+library(tidyverse)
+library(rvest)
+library(RSelenium)
+library(glue)
+knitr::opts_chunk$set(echo = FALSE,
+                      cache = TRUE,
+                      cache.path = "cache/",
+                      fig.path = "images/")
+
+```
+
+
+```{r anu}
+rD <- rsDriver(browser="firefox", port=4779L, verbose=F)
+remDr <- rD[["client"]]
+
+baseurl<- "https://programsandcourses.anu.edu.au"
+wait_time <- function() Sys.sleep(sample(3:5, 1))
+
+data <- tibble(Course = character(),
+               Course_code = character(),
+               Unit = character(),
+               Unit_code = character(),
+               Overview = character(),
+               Requisite = character(),
+               Outcomes = list())
+```
+
+
+```{r anu}
+remDr$navigate("https://programsandcourses.anu.edu.au/program/madan#program-requirements")
+wait_time()
+course_html <- read_html(remDr$getPageSource()[[1]])
+
+title <- course_html %>% 
+      html_element(".intro__degree-title__component") %>% 
+      html_text()
+
+#UAC CODE
+code <- course_html %>%
+      html_element("div.degree-summary.hide-mobile.w-doublenarrow") %>%
+      html_element("div.degree-summary-inner") %>%
+      html_element("div") %>%
+      html_element("ul:nth-child(1)") %>% 
+      html_element("li:nth-child(4)") %>% 
+      html_element("a") %>% 
+      html_text() %>% 
+      str_remove("\\s*\\([^\\)]+\\)")
+
+curriculum <- course_html %>% 
+      html_element("#study") %>% 
+      html_element("div:nth-child(1)") %>% 
+      html_elements("p") %>% 
+      html_elements("a") %>% 
+      html_attr("href") %>%
+      str_replace_all("/2023", "/2022")
+
+tryCatch({
+    for(unit in curriculum) {
+      cunit <- str_sub(unit ,start = -8)
+      remDr$navigate(glue("{baseurl}{unit}"))
+      wait_time()
+      unit_html <- read_html(remDr$getPageSource()[[1]])
+      
+      subject_text <- unit_html %>%
+        html_element(".intro__degree-title__component") %>% html_text()
+     
+      #message(paste("Going through the unit:", subject_text))
+      
+      ## get the overview of the unit
+      overview <- unit_html %>% 
+        html_element("#introduction ") %>% 
+        html_element("p:nth-child(1)") %>% 
+        html_text()
+      
+       ## Requisite and Incompatibility
+      requisite <- unit_html %>% 
+        html_element(".requisite") %>% 
+        html_text()
+      
+        ##learning outcomes
+
+      lc <- unit_html %>% 
+        html_element("#overview") %>% 
+        html_elements("li") %>% 
+        html_text() %>% 
+        list()
+      
+      data <- data %>% 
+        bind_rows(tibble(!!!list(Course = title,
+                                 Course_code = code,
+                                 Unit = subject_text,
+                                   Unit_code = cunit,
+                                   Overview = overview,
+                                   Requisite = requisite,
+                                   Outcomes =lc)))
+      }
+      
+    }, error = function(x) x)
+         
+data1 <- data %>% rowwise() %>% 
+  mutate(Outcomes =paste(Outcomes, collapse =" "))
+```
+
+
+```{r output}
+data1 %>% 
+  write_csv(file = "data/anu-master-appdatasci.csv")
+# stop the rselenium server
+#rD[["server"]]$stop()
+
+
+```
